@@ -6,15 +6,17 @@
 #include "sign.h"
 
 void main() {
-    char *data = "test";
-    char *PIN = "12345678";
+    TMemoryPointer input = {.data = "test", .length=arraysize("test")};
+    char *user_pin = "12345678";
     char *key_pair_id = "00000000";
 
-    size_t result_size = 0;
-    uint8_t *result = perform_signing(data, arraysize(data), &result_size, PIN, arraysize(PIN), key_pair_id, arraysize(key_pair_id));
-    if (result == NULL || result_size == 0){
+    TMemoryPointer result = perform_signing(input, user_pin, key_pair_id);
+    if (result.data == NULL){
         puts("perform_signing failed");
     }
-    else
-        free(result);
+    else {
+        puts("perform_signing succeeded");
+        printf("result length: %zu\n", result.length);
+        free(result.data);
+    }
 }

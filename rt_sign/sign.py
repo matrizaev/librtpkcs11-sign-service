@@ -2,18 +2,24 @@
 Signs the input using the specified user PIN and key pair ID.
 """
 
-from ctypes import CDLL, POINTER, byref, c_char_p, c_size_t
+from ctypes import CDLL, c_char_p, c_size_t, Structure
+from typing import Any
 
+class TMemoryPointer(Structure):
+    _fields_ = [
+        ("length", c_size_t),
+        ("data", c_char_p)
+    ]
 
-def perform_signing(input_data: bytes, user_pin: bytes, key_pair_id: bytes) -> tuple[bytes, int]:
+def perform_signing(input_data: bytes, user_pin: bytes, key_pair_id: bytes) -> TMemoryPointer:
     """
     Signs the input using the specified user PIN and key pair ID.
     """
     lib = CDLL("./librtpks11sign/librtpks11sign.so")
-    lib.perform_signing.perform_signing = c_char_p
-    lib.perform_signing.argtypes = [c_char_p, c_size_t, POINTER(c_size_t), c_char_p, c_size_t, c_char_p, c_size_t]
-    output_size = c_size_t()
-    result: bytes = lib.perform_signing(
-        input_data, len(input_data), byref(output_size), user_pin, len(user_pin), key_pair_id, len(key_pair_id)
+    lib.perform_signing.restype = TMemoryPointer
+    lib.perform_signing.argtypes = [TMemoryPointer, c_char_p, c_char_p]
+    input_struct = TMemoryPointer(len(input_data), input_data)
+    result: TMemoryPointer = lib.perform_signing(
+        input_struct, user_pin, key_pair_id
     )
-    return result, output_size.value
+    return result

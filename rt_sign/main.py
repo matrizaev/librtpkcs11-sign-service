@@ -4,7 +4,7 @@ import binascii
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from rt_sign.sign import perform_signing
+from rt_sign.sign import perform_signing, TMemoryPointer
 
 
 class SignRequest(BaseModel):
@@ -35,7 +35,7 @@ async def sign(sign_request: SignRequest):
         raise HTTPException(status_code=400, detail="Invalid input data") from exc
     if not data:
         raise HTTPException(status_code=400, detail="Invalid input data")
-    (result, result_size) = perform_signing(data, sign_request.user_pin.encode(), sign_request.key_pair_id.encode())
-    if not result or not result_size:
+    result:TMemoryPointer = perform_signing(data, sign_request.user_pin.encode(), sign_request.key_pair_id.encode())
+    if not result.data or not result.length:
         raise HTTPException(status_code=500, detail="Signing failed")
-    return {"signature": base64.b64encode(result)}
+    return {"signature": base64.b64encode(result.data)}

@@ -199,7 +199,7 @@ error:
 }
 
 
-uint8_t *perform_signing (uint8_t *input, size_t inputLength, size_t *outputLength, uint8_t *userPIN, size_t userPINLen, uint8_t *keyPairId, size_t keyPairIdLen)
+TMemoryPointer perform_signing (const TMemoryPointer input, char *user_pin, char *key_pair_id)
 {
     /************************************************************************
     * Вспомогательные переменные                                            *
@@ -227,9 +227,10 @@ uint8_t *perform_signing (uint8_t *input, size_t inputLength, size_t *outputLeng
     CK_ULONG certificatesCount;																// Количество найденных сертификатов
 
     CK_BYTE_PTR signature = NULL;															// Указатель на буфер, содержащий подпись для исходных данных
-    uint8_t *result = NULL;
+    CK_ULONG signatureSize = 0;
+    TMemoryPointer result = {.length = 0, .data = NULL};
 
-    check (input != NULL && outputLength != NULL && userPIN != NULL && keyPairId != NULL && keyPairIdLen != 0, "Function input is invalid.");
+    check (input.data != NULL && input.length > 0 && user_pin != NULL && key_pair_id != NULL, "Function input is invalid.");
 
     /*************************************************************************
     * Шаблон для поиска закрытого ключа ГОСТ Р 34.10-2012(256)               *
@@ -238,7 +239,7 @@ uint8_t *perform_signing (uint8_t *input, size_t inputLength, size_t *outputLeng
     {
         { CKA_CLASS, &privateKeyObject, sizeof(privateKeyObject) },							// Класс - закрытый ключ
         { CKA_TOKEN, &attributeTrue, sizeof(attributeTrue) },								// Закрытый ключ является объектом токена
-        { CKA_ID, keyPairId, keyPairIdLen },												// Идентификатор искомой пары
+        { CKA_ID, key_pair_id, strlen(key_pair_id) },												// Идентификатор искомой пары
     };
 
     /*************************************************************************
@@ -248,12 +249,11 @@ uint8_t *perform_signing (uint8_t *input, size_t inputLength, size_t *outputLeng
     {
         { CKA_CLASS, &certificateObject, sizeof(certificateObject) },						// Класс - сертификат
         { CKA_TOKEN, &attributeTrue, sizeof(attributeTrue) },								// Сертификат является объектом токена
-        { CKA_ID, keyPairId, keyPairIdLen},													// Идентификатор ключевой пары, которой соответствует сертификат
+        { CKA_ID, key_pair_id, strlen(key_pair_id)},													// Идентификатор ключевой пары, которой соответствует сертификат
         { CKA_CERTIFICATE_TYPE, &certificateType, sizeof(certificateType) },				// Тип сертификата - X.509
 //		{ CKA_CERTIFICATE_CATEGORY, &tokenUserCertificate, sizeof(tokenUserCertificate)},	// Категория сертификата - пользовательский
     };
-    
-    *outputLength = 0;
+
     /*************************************************************************
     * Загрузить библиотеку                                                   *
     *************************************************************************/
@@ -325,7 +325,7 @@ uint8_t *perform_signing (uint8_t *input, size_t inputLength, size_t *outputLeng
     * Выполнить аутентификацию Пользователя                                  *
     *************************************************************************/
 
-    rv = functionList->C_Login(session, CKU_USER, userPIN, userPINLen);
+    rv = functionList->C_Login(session, CKU_USER, user_pin, strlen(user_pin));
     check (rv == CKR_OK, "C_Login: %s", rvToStr(rv));
 
 
@@ -346,13 +346,14 @@ uint8_t *perform_signing (uint8_t *input, size_t inputLength, size_t *outputLeng
     /*************************************************************************
     * Подписать данные                                                       *
     *************************************************************************/
-    rv = functionListEx->C_EX_PKCS7Sign(session, input, inputLength, certificates[0],
-                                        &signature, outputLength, privateKeys[0], NULL, 0, USE_HARDWARE_HASH | PKCS7_DETACHED_SIGNATURE);
-    check (rv == CKR_OK && *outputLength != 0, "C_EX_PKCS7Sign: %s", rvToStr(rv));
+    rv = functionListEx->C_EX_PKCS7Sign(session, input.data, input.length, certificates[0],
+                                        &signature, &signatureSize, privateKeys[0], NULL, 0, USE_HARDWARE_HASH | PKCS7_DETACHED_SIGNATURE);
+    check (rv == CKR_OK && signatureSize != 0, "C_EX_PKCS7Sign: %s", rvToStr(rv));
 
-    result = malloc(*outputLength);
-    check_mem(result);
-    memmove(result, signature, *outputLength);
+    result.data = malloc(signatureSize);
+    check_mem(result.data);
+    result.length = signatureSize;
+    memmove(result.data, signature, signatureSize);
 
 error:
     /*************************************************************************
