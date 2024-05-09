@@ -13,10 +13,25 @@ void main() {
     TMemoryPointer result = perform_signing(input, user_pin, key_pair_id);
     if (result.data == NULL){
         puts("perform_signing failed");
+        result.length = 0;
     }
     else {
         puts("perform_signing succeeded");
         printf("result length: %zu\n", result.length);
         free(result.data);
+        result.data = NULL;
+        result.length = 0;
+    }
+
+    result = hello_world(input);
+    if (result.data == NULL){
+        puts("hello_world failed");
+        result.length = 0;
+    } else {
+        puts("hello_world succeeded");
+        printf("result length: %zu\n", result.length);
+        free(result.data);
+        result.data = NULL;
+        result.length = 0;
     }
 }

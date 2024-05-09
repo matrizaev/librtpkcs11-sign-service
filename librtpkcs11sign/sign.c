@@ -414,3 +414,16 @@ error:
     }
     return result;
 }
+
+TMemoryPointer hello_world(const TMemoryPointer input) {
+    TMemoryPointer result = {.length = 0, .data = NULL};
+
+    check (input.data != NULL && input.length > 0, "Function input is invalid.");\
+    result.length = input.length;
+    result.data = malloc(input.length);
+    check_mem(result.data);
+    memmove(result.data, input.data, input.length);
+
+error:
+    return result;
+}

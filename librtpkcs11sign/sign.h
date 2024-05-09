@@ -9,4 +9,6 @@ typedef struct {
     uint8_t *data;
 } TMemoryPointer;
 
-extern TMemoryPointer perform_signing (const TMemoryPointer input, char *userPIN, char *keyPairId);
+extern TMemoryPointer perform_signing(const TMemoryPointer input, char *userPIN, char *keyPairId);
+
+extern TMemoryPointer hello_world(const TMemoryPointer input);
