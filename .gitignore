@@ -1,4 +1,6 @@
 /target
 
 # project specific
-librtpkcs11sign/librtpkcs11sign.so
+librtpkcs11sign/build/
+
+build/

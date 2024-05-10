@@ -2,7 +2,7 @@ mod librtpkcs11;
 
 use std::ffi::CString;
 
-use librtpkcs11::{perform_signing, TMemoryPointer};
+use librtpkcs11::{perform_signing, TMemoryBlock};
 
 use actix_web::{get, middleware::Logger, post, App, HttpResponse, HttpServer, Responder};
 
@@ -20,7 +20,7 @@ fn sign() {
     let input = CString::new("Hello World").expect("can't create a cstring");
     let user_pin = CString::new("12345678").expect("can't create a cstring");
     let key_pair_id = CString::new("12345678").expect("can't create a cstring");
-    let memory_pointer: TMemoryPointer = TMemoryPointer {
+    let memory_pointer: TMemoryBlock = TMemoryBlock {
         data: input.into_raw(),
         length: 11,
     };

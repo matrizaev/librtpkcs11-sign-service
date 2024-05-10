@@ -252,30 +252,30 @@ pub type intmax_t = __intmax_t;
 pub type uintmax_t = __uintmax_t;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct TMemoryPointer {
+pub struct TMemoryBlock {
     pub length: usize,
     pub data: *mut i8,
 }
 #[test]
-fn bindgen_test_layout_TMemoryPointer() {
-    const UNINIT: ::std::mem::MaybeUninit<TMemoryPointer> = ::std::mem::MaybeUninit::uninit();
+fn bindgen_test_layout_TMemoryBlock() {
+    const UNINIT: ::std::mem::MaybeUninit<TMemoryBlock> = ::std::mem::MaybeUninit::uninit();
     let ptr = UNINIT.as_ptr();
     assert_eq!(
-        ::std::mem::size_of::<TMemoryPointer>(),
+        ::std::mem::size_of::<TMemoryBlock>(),
         16usize,
-        concat!("Size of: ", stringify!(TMemoryPointer))
+        concat!("Size of: ", stringify!(TMemoryBlock))
     );
     assert_eq!(
-        ::std::mem::align_of::<TMemoryPointer>(),
+        ::std::mem::align_of::<TMemoryBlock>(),
         8usize,
-        concat!("Alignment of ", stringify!(TMemoryPointer))
+        concat!("Alignment of ", stringify!(TMemoryBlock))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).length) as usize - ptr as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(TMemoryPointer),
+            stringify!(TMemoryBlock),
             "::",
             stringify!(length)
         )
@@ -285,7 +285,7 @@ fn bindgen_test_layout_TMemoryPointer() {
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(TMemoryPointer),
+            stringify!(TMemoryBlock),
             "::",
             stringify!(data)
         )
@@ -293,11 +293,11 @@ fn bindgen_test_layout_TMemoryPointer() {
 }
 extern "C" {
     pub fn perform_signing(
-        input: TMemoryPointer,
+        input: TMemoryBlock,
         userPIN: *mut ::std::os::raw::c_char,
         keyPairId: *mut ::std::os::raw::c_char,
-    ) -> TMemoryPointer;
+    ) -> TMemoryBlock;
 }
 extern "C" {
-    pub fn hello_world(input: TMemoryPointer) -> TMemoryPointer;
+    pub fn hello_world(input: TMemoryBlock) -> TMemoryBlock;
 }

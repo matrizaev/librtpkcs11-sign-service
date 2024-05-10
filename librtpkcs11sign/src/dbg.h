@@ -1,6 +1,9 @@
 #ifndef __dbg_h__
 #define __dbg_h__
 
+#include <string.h>
+#include <errno.h>
+
 #ifdef NDEBUG
 #define debug(M, ...)
 #else
