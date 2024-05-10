@@ -1,7 +1,8 @@
 #include "minunit.h"
 #include "sign.h"
+#include "librtpkcs11sign.h"
 
-char *test_rtpkcs11()
+char *test_init_rtpkcs11()
 {
     TPKCS11Handle handle = init_pkcs11(NULL);
     mu_assert(handle.pkcs11_handle == NULL, "init_pkcs11 should have failed with the library name NULL");
