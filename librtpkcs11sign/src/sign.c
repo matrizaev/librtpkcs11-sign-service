@@ -50,7 +50,7 @@ TPKCS11Handle init_pkcs11(const char *library_file_name)
     check_mem(result.slots);
 
     rv = result.function_list->C_GetSlotList(CK_TRUE, result.slots, &result.slot_count);
-    check((rv == CKR_OK) || (result.slot_count != 0), "There are no slots available: %s", rv_to_str(rv));
+    check((rv == CKR_OK) && (result.slot_count != 0), "There are no slots available: %s", rv_to_str(rv));
 
 error:
     return result;
