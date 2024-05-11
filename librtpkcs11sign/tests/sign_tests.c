@@ -25,6 +25,22 @@ char *test_get_slots_info()
 {
     TSlotTokenInfoArray slots = get_slots_info(PKCS11_LIBRARY_NAME);
     mu_assert(slots.count > 0 && slots.slots_info != NULL, "get_slots_info failed");
+
+    for (size_t i = 0; i < slots.count; i++)
+    {
+        if (slots.slots_info[i].valid)
+        {
+            printf("Slot %zu:\n", i);
+            printf("\tslotDescription: %s\n", slots.slots_info[i].slot_info.slotDescription);
+            printf("\tmanufacturerID: %s\n", slots.slots_info[i].slot_info.manufacturerID);
+            printf("\tmanufacturerID: %s\n", slots.slots_info[i].token_info.manufacturerID);
+            printf("\tlabel: %s\n", slots.slots_info[i].token_info.label);
+            printf("\tmodel: %s\n", slots.slots_info[i].token_info.model);
+            printf("\tserialNumber: %s\n", slots.slots_info[i].token_info.serialNumber);
+            puts("----------");
+        }
+    }
+
     return NULL;
 }
 
