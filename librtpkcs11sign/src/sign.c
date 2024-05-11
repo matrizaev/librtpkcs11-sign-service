@@ -295,6 +295,7 @@ TSlotTokenInfoArray get_slots_info()
             result.slots_info[i].valid = false;
             continue;
         }
+        result.slots_info[i].valid = true;
     }
 
 error:
