@@ -1,8 +1,8 @@
-mod librtpkcs11;
+mod librtpkcs11sign;
 
 use std::ffi::CString;
 
-use librtpkcs11::{perform_signing, TByteArray};
+use librtpkcs11sign::{get_slots_info, perform_signing, TByteArray, TSlotTokenInfoArray};
 
 use actix_web::{get, middleware::Logger, post, App, HttpResponse, HttpServer, Responder};
 
@@ -21,7 +21,7 @@ fn sign() {
     let user_pin = CString::new("12345678").expect("can't create a cstring");
     let key_pair_id = CString::new("12345678").expect("can't create a cstring");
     let memory_pointer: TByteArray = TByteArray {
-        data: input.into_raw(),
+        data: input.into_raw() as *mut u8,
         length: 11,
     };
     unsafe {
@@ -38,6 +38,10 @@ fn sign() {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    unsafe {
+        let slots_info = get_slots_info();
+        println!("{:?}", slots_info);
+    }
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     HttpServer::new(|| {
         App::new()

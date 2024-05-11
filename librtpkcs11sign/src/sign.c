@@ -289,7 +289,7 @@ TSlotTokenInfoArray get_slots_info()
             continue;
         }
         rv = handle.function_list->C_GetTokenInfo(slot_id, &result.slots_info[i].token_info);
-        if (rv == CKR_TOKEN_NOT_PRESENT)
+        if (rv != CKR_OK)
         {
             log_err("Couldn't run C_GetTokenInfo: %s for %ld", rv_to_str(rv), slot_id);
             result.slots_info[i].valid = false;

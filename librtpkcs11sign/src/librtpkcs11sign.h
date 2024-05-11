@@ -10,7 +10,7 @@
 typedef struct
 {
     size_t length; // the full length of the memory block in bytes
-    void *data;
+    uint8_t *data;
 } TByteArray;
 
 typedef struct
