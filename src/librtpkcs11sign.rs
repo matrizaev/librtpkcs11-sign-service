@@ -5,6 +5,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
+use std::ffi::{c_char, CString};
 use std::fmt;
 
 use serde::ser::SerializeStruct;
@@ -218,6 +219,7 @@ pub struct TSlotTokenInfo {
     pub slot_info: CK_SLOT_INFO,
     pub token_info: CK_TOKEN_INFO,
     pub valid: bool,
+    pub slot_id: usize,
 }
 
 #[repr(C)]
@@ -245,15 +247,16 @@ impl Serialize for TSlotTokenInfoArray {
 }
 
 extern "C" {
-    pub fn perform_signing(
+    fn perform_signing(
         input: TByteArray,
-        userPIN: *mut ::std::os::raw::c_char,
-        keyPairId: *mut ::std::os::raw::c_char,
+        user_pin: *mut c_char,
+        key_pair_id: *mut c_char,
+        slot_id: usize,
     ) -> TByteArray;
 }
 
 extern "C" {
-    pub fn get_slots_info() -> TSlotTokenInfoArray;
+    fn get_slots_info() -> TSlotTokenInfoArray;
 }
 
 pub fn rtpkcs11sign_get_slots_info() -> Option<Vec<TSlotTokenInfo>> {
@@ -262,6 +265,35 @@ pub fn rtpkcs11sign_get_slots_info() -> Option<Vec<TSlotTokenInfo>> {
         if slots_info.count > 0 && !slots_info.slots_info.is_null() {
             let result = slots_info.get_slots_info();
             libc::free(slots_info.slots_info as *mut libc::c_void);
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+pub fn rtpkcs11sign_perform_signing(
+    mut input_data: Vec<u8>,
+    user_pin: &str,
+    key_pair_id: &str,
+    slot_id: usize,
+) -> Option<Vec<u8>> {
+    let user_pin = CString::new(user_pin).expect("can't create a cstring");
+    let key_pair_id = CString::new(key_pair_id).expect("can't create a cstring");
+    let memory_pointer: TByteArray = TByteArray {
+        data: input_data.as_mut_ptr(),
+        length: input_data.len(),
+    };
+    unsafe {
+        let memory_pointer = perform_signing(
+            memory_pointer,
+            user_pin.into_raw(),
+            key_pair_id.into_raw(),
+            slot_id,
+        );
+        if memory_pointer.length > 0 && !memory_pointer.data.is_null() {
+            let result = memory_pointer.get_data();
+            libc::free(memory_pointer.data as *mut libc::c_void);
             Some(result)
         } else {
             None

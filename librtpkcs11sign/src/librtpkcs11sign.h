@@ -18,6 +18,7 @@ typedef struct
     CK_SLOT_INFO slot_info;
     CK_TOKEN_INFO token_info;
     bool valid;
+    size_t slot_id;
 } TSlotTokenInfo;
 
 typedef struct

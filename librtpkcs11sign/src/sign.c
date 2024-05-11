@@ -280,6 +280,8 @@ TSlotTokenInfoArray get_slots_info()
     for (size_t i = 0; i < handle.slot_count; i++)
     {
         CK_SLOT_ID slot_id = handle.slots[i];
+        result.slots_info[i].slot_id = slot_id;
+        result.slots_info[i].valid = true;
 
         rv = handle.function_list->C_GetSlotInfo(slot_id, &result.slots_info[i].slot_info);
         if (rv != CKR_OK)
@@ -295,7 +297,6 @@ TSlotTokenInfoArray get_slots_info()
             result.slots_info[i].valid = false;
             continue;
         }
-        result.slots_info[i].valid = true;
     }
 
 error:
