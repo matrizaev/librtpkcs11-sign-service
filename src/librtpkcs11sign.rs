@@ -5,11 +5,19 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
+use std::fmt;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CK_VERSION {
     pub major: u8,
     pub minor: u8,
+}
+
+impl fmt::Display for CK_VERSION {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}.{}", self.major, self.minor)
+    }
 }
 
 #[repr(C)]
@@ -20,6 +28,22 @@ pub struct CK_SLOT_INFO {
     pub flags: u32,
     pub hardwareVersion: CK_VERSION,
     pub firmwareVersion: CK_VERSION,
+}
+
+impl fmt::Display for CK_SLOT_INFO {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let slotDescription = String::from_utf8_lossy(&self.slotDescription);
+        let manufacturerID = String::from_utf8_lossy(&self.manufacturerID);
+        write!(
+            f,
+            "slotDescription: {slotDescription},
+            manufacturerID: {manufacturerID},
+            flags: {},
+            hardwareVersion: {},
+            firmwareVersion: {}",
+            self.flags, self.hardwareVersion, self.firmwareVersion
+        )
+    }
 }
 
 #[repr(C)]
@@ -43,6 +67,51 @@ pub struct CK_TOKEN_INFO {
     pub hardwareVersion: CK_VERSION,
     pub firmwareVersion: CK_VERSION,
     pub utcTime: [u8; 16usize],
+}
+
+impl fmt::Display for CK_TOKEN_INFO {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let label = String::from_utf8_lossy(&self.label);
+        let manufacturerID = String::from_utf8_lossy(&self.manufacturerID);
+        let model = String::from_utf8_lossy(&self.model);
+        let serialNumber = String::from_utf8_lossy(&self.serialNumber);
+
+        write!(
+            f,
+            "label: {label},
+            manufacturerID: {manufacturerID},
+            model: {model},
+            serialNumber: {serialNumber},
+            flags: {},
+            ulMaxSessionCount: {},
+            ulSessionCount: {},
+            ulMaxRwSessionCount: {},
+            ulRwSessionCount: {},
+            ulMaxPinLen: {},
+            ulMinPinLen: {},
+            ulTotalPublicMemory: {},
+            ulFreePublicMemory: {},
+            ulTotalPrivateMemory: {},
+            ulFreePrivateMemory: {},
+            hardwareVersion: {},
+            firmwareVersion: {},
+            utcTime: {:?}",
+            self.flags,
+            self.ulMaxSessionCount,
+            self.ulSessionCount,
+            self.ulMaxRwSessionCount,
+            self.ulRwSessionCount,
+            self.ulMaxPinLen,
+            self.ulMinPinLen,
+            self.ulTotalPublicMemory,
+            self.ulFreePublicMemory,
+            self.ulTotalPrivateMemory,
+            self.ulFreePrivateMemory,
+            self.hardwareVersion,
+            self.firmwareVersion,
+            self.utcTime
+        )
+    }
 }
 
 #[repr(C)]
@@ -74,6 +143,7 @@ extern "C" {
         keyPairId: *mut ::std::os::raw::c_char,
     ) -> TByteArray;
 }
+
 extern "C" {
     pub fn get_slots_info() -> TSlotTokenInfoArray;
 }
