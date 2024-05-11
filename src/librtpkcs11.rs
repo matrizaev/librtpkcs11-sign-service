@@ -252,30 +252,30 @@ pub type intmax_t = __intmax_t;
 pub type uintmax_t = __uintmax_t;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct TMemoryBlock {
+pub struct TByteArray {
     pub length: usize,
     pub data: *mut i8,
 }
 #[test]
-fn bindgen_test_layout_TMemoryBlock() {
-    const UNINIT: ::std::mem::MaybeUninit<TMemoryBlock> = ::std::mem::MaybeUninit::uninit();
+fn bindgen_test_layout_TByteArray() {
+    const UNINIT: ::std::mem::MaybeUninit<TByteArray> = ::std::mem::MaybeUninit::uninit();
     let ptr = UNINIT.as_ptr();
     assert_eq!(
-        ::std::mem::size_of::<TMemoryBlock>(),
+        ::std::mem::size_of::<TByteArray>(),
         16usize,
-        concat!("Size of: ", stringify!(TMemoryBlock))
+        concat!("Size of: ", stringify!(TByteArray))
     );
     assert_eq!(
-        ::std::mem::align_of::<TMemoryBlock>(),
+        ::std::mem::align_of::<TByteArray>(),
         8usize,
-        concat!("Alignment of ", stringify!(TMemoryBlock))
+        concat!("Alignment of ", stringify!(TByteArray))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).length) as usize - ptr as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(TMemoryBlock),
+            stringify!(TByteArray),
             "::",
             stringify!(length)
         )
@@ -285,7 +285,7 @@ fn bindgen_test_layout_TMemoryBlock() {
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(TMemoryBlock),
+            stringify!(TByteArray),
             "::",
             stringify!(data)
         )
@@ -293,11 +293,11 @@ fn bindgen_test_layout_TMemoryBlock() {
 }
 extern "C" {
     pub fn perform_signing(
-        input: TMemoryBlock,
+        input: TByteArray,
         userPIN: *mut ::std::os::raw::c_char,
         keyPairId: *mut ::std::os::raw::c_char,
-    ) -> TMemoryBlock;
+    ) -> TByteArray;
 }
 extern "C" {
-    pub fn hello_world(input: TMemoryBlock) -> TMemoryBlock;
+    pub fn hello_world(input: TByteArray) -> TByteArray;
 }

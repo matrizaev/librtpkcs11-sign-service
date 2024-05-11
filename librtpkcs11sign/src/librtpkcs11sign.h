@@ -3,17 +3,30 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #include <rutoken/rtpkcs11.h>
 
 typedef struct
 {
-    size_t length;
-    uint8_t *data;
-} TMemoryBlock;
+    size_t length; // the full length of the memory block in bytes
+    void *data;
+} TByteArray;
 
-extern TMemoryBlock perform_signing(const TMemoryBlock input, char *userPIN, char *keyPairId, size_t slot);
-extern size_t get_slot_count();
-// extern CK_SLOT_INFO get_slot_info(size_t slot);
+typedef struct
+{
+    CK_SLOT_INFO slot_info;
+    CK_TOKEN_INFO token_info;
+    bool valid;
+} TSlotTokenInfo;
+
+typedef struct
+{
+    size_t count;
+    TSlotTokenInfo *slots_info;
+} TSlotTokenInfoArray;
+
+extern TByteArray perform_signing(const TByteArray input, char *user_pin, char *key_pair_id, size_t slot);
+extern TSlotTokenInfoArray get_slots_info();
 
 #endif // _LIBRTPKCS11_H

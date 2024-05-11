@@ -21,10 +21,10 @@ char *test_init_rtpkcs11()
     return NULL;
 }
 
-char *test_get_slot_count()
+char *test_get_slots_info()
 {
-    mu_assert(get_slot_count() > 0, "no slots available");
-
+    TSlotTokenInfoArray slots = get_slots_info(PKCS11_LIBRARY_NAME);
+    mu_assert(slots.count > 0 && slots.slots_info != NULL, "get_slots_info failed");
     return NULL;
 }
 
@@ -34,7 +34,7 @@ char *all_tests()
     mu_suite_start();
 
     mu_run_test(test_init_rtpkcs11);
-    mu_run_test(test_get_slot_count);
+    mu_run_test(test_get_slots_info);
 
     return NULL;
 }

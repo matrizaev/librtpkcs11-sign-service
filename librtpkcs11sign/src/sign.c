@@ -183,7 +183,7 @@ error:
     return error_code;
 }
 
-TMemoryBlock perform_signing(const TMemoryBlock input, char *user_pin, char *key_pair_id, size_t slot)
+TByteArray perform_signing(const TByteArray input, char *user_pin, char *key_pair_id, size_t slot)
 {
 
     CK_OBJECT_CLASS privateKeyObject = CKO_PRIVATE_KEY;
@@ -202,7 +202,7 @@ TMemoryBlock perform_signing(const TMemoryBlock input, char *user_pin, char *key
 
     CK_BYTE_PTR signature = NULL;
     CK_ULONG signatureSize = 0;
-    TMemoryBlock result = {.length = 0, .data = NULL};
+    TByteArray result = {.length = 0, .data = NULL};
 
     check(input.data != NULL && input.length > 0 && user_pin != NULL && key_pair_id != NULL, "Function input is invalid.");
 
@@ -266,10 +266,38 @@ error:
     return result;
 }
 
-size_t get_slot_count()
+TSlotTokenInfoArray get_slots_info()
 {
+    TSlotTokenInfoArray result = {.count = 0, .slots_info = NULL};
+    CK_RV rv;
+
     TPKCS11Handle handle = init_pkcs11(PKCS11_LIBRARY_NAME);
     check(check_pkcs11(handle), "pkcs11 handle is invalid");
+    result.slots_info = (TSlotTokenInfo *)malloc(handle.slot_count * sizeof(TSlotTokenInfo));
+    check_mem(result.slots_info);
+    result.count = handle.slot_count;
+
+    for (size_t i = 0; i < handle.slot_count; i++)
+    {
+        CK_SLOT_ID slot_id = handle.slots[i];
+
+        rv = handle.function_list->C_GetSlotInfo(slot_id, &result.slots_info[i].slot_info);
+        if (rv != CKR_OK)
+        {
+            log_err("Couldn't run C_GetSlotInfo: %s for %ld", rv_to_str(rv), slot_id);
+            result.slots_info[i].valid = false;
+            continue;
+        }
+        rv = handle.function_list->C_GetTokenInfo(slot_id, &result.slots_info[i].token_info);
+        if (rv == CKR_TOKEN_NOT_PRESENT)
+        {
+            log_err("Couldn't run C_GetTokenInfo: %s for %ld", rv_to_str(rv), slot_id);
+            result.slots_info[i].valid = false;
+            continue;
+        }
+    }
+
 error:
-    return handle.slot_count;
+    cleanup_pkcs11(handle);
+    return result;
 }
