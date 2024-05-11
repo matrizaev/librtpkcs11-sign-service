@@ -2,7 +2,7 @@ mod librtpkcs11sign;
 
 use std::ffi::CString;
 
-use librtpkcs11sign::{get_slots_info, perform_signing, TByteArray, TSlotTokenInfoArray};
+use librtpkcs11sign::{get_slots_info, perform_signing, TByteArray, TSlotTokenInfo};
 
 use actix_web::{get, middleware::Logger, post, App, HttpResponse, HttpServer, Responder};
 
@@ -41,6 +41,12 @@ async fn main() -> std::io::Result<()> {
     unsafe {
         let slots_info = get_slots_info();
         println!("{:?}", slots_info);
+        if slots_info.count > 0 && !slots_info.slots_info.is_null() {
+            let slot_token_info =
+                std::slice::from_raw_parts(slots_info.slots_info, slots_info.count);
+            println!("{:?}", slot_token_info[0].slot_info);
+            println!("{:?}", slot_token_info[0].token_info);
+        }
     }
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     HttpServer::new(|| {
