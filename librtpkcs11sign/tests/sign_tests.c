@@ -44,6 +44,18 @@ char *test_get_slots_info()
     return NULL;
 }
 
+char *test_perform_signing()
+{
+    TByteArray input_data = {
+        .data = "Hello World!",
+        .length = 12};
+    TByteArray signature = perform_signing(input_data, "12345678", "12345678", 0);
+
+    mu_assert(signature.data != NULL && signature.length > 0, "perform_signing failed");
+
+    return NULL;
+}
+
 char *all_tests()
 {
 
@@ -51,6 +63,7 @@ char *all_tests()
 
     mu_run_test(test_init_rtpkcs11);
     mu_run_test(test_get_slots_info);
+    mu_run_test(test_perform_signing);
 
     return NULL;
 }
