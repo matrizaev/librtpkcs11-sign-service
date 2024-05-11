@@ -932,6 +932,8 @@ dependencies = [
  "actix-web",
  "env_logger",
  "libc",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

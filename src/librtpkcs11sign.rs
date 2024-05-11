@@ -7,8 +7,11 @@
 
 use std::fmt;
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize)]
 pub struct CK_VERSION {
     pub major: u8,
     pub minor: u8,
@@ -30,19 +33,45 @@ pub struct CK_SLOT_INFO {
     pub firmwareVersion: CK_VERSION,
 }
 
+impl CK_SLOT_INFO {
+    fn get_slot_description(&self) -> String {
+        String::from_utf8_lossy(&self.slotDescription).to_string()
+    }
+    fn get_manufacturer_id(&self) -> String {
+        String::from_utf8_lossy(&self.manufacturerID).to_string()
+    }
+}
+
 impl fmt::Display for CK_SLOT_INFO {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let slotDescription = String::from_utf8_lossy(&self.slotDescription);
-        let manufacturerID = String::from_utf8_lossy(&self.manufacturerID);
         write!(
             f,
-            "slotDescription: {slotDescription},
-            manufacturerID: {manufacturerID},
+            "slotDescription: {},
+            manufacturerID: {},
             flags: {},
             hardwareVersion: {},
             firmwareVersion: {}",
-            self.flags, self.hardwareVersion, self.firmwareVersion
+            self.get_slot_description(),
+            self.get_manufacturer_id(),
+            self.flags,
+            self.hardwareVersion,
+            self.firmwareVersion
         )
+    }
+}
+
+impl Serialize for CK_SLOT_INFO {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("CK_SLOT_INFO", 5)?;
+        state.serialize_field("slotDescription", &self.get_slot_description())?;
+        state.serialize_field("manufacturerID", &self.get_manufacturer_id())?;
+        state.serialize_field("flags", &self.flags)?;
+        state.serialize_field("hardwareVersion", &self.hardwareVersion)?;
+        state.serialize_field("firmwareVersion", &self.firmwareVersion)?;
+        state.end()
     }
 }
 
@@ -69,19 +98,32 @@ pub struct CK_TOKEN_INFO {
     pub utcTime: [u8; 16usize],
 }
 
+impl CK_TOKEN_INFO {
+    fn get_label(&self) -> String {
+        String::from_utf8_lossy(&self.label).to_string()
+    }
+    fn get_manufacturer_id(&self) -> String {
+        String::from_utf8_lossy(&self.manufacturerID).to_string()
+    }
+    fn get_model(&self) -> String {
+        String::from_utf8_lossy(&self.model).to_string()
+    }
+    fn get_serial_number(&self) -> String {
+        String::from_utf8_lossy(&self.serialNumber).to_string()
+    }
+    fn get_utc_time(&self) -> u128 {
+        u128::from_be_bytes(self.utcTime)
+    }
+}
+
 impl fmt::Display for CK_TOKEN_INFO {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let label = String::from_utf8_lossy(&self.label);
-        let manufacturerID = String::from_utf8_lossy(&self.manufacturerID);
-        let model = String::from_utf8_lossy(&self.model);
-        let serialNumber = String::from_utf8_lossy(&self.serialNumber);
-
         write!(
             f,
-            "label: {label},
-            manufacturerID: {manufacturerID},
-            model: {model},
-            serialNumber: {serialNumber},
+            "label: {},
+            manufacturerID: {},
+            model: {},
+            serialNumber: {},
             flags: {},
             ulMaxSessionCount: {},
             ulSessionCount: {},
@@ -95,7 +137,11 @@ impl fmt::Display for CK_TOKEN_INFO {
             ulFreePrivateMemory: {},
             hardwareVersion: {},
             firmwareVersion: {},
-            utcTime: {:?}",
+            utcTime: {}",
+            self.get_label(),
+            self.get_manufacturer_id(),
+            self.get_model(),
+            self.get_serial_number(),
             self.flags,
             self.ulMaxSessionCount,
             self.ulSessionCount,
@@ -109,8 +155,36 @@ impl fmt::Display for CK_TOKEN_INFO {
             self.ulFreePrivateMemory,
             self.hardwareVersion,
             self.firmwareVersion,
-            self.utcTime
+            self.get_utc_time()
         )
+    }
+}
+
+impl Serialize for CK_TOKEN_INFO {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("CK_TOKEN_INFO", 18)?;
+        state.serialize_field("label", &self.get_label())?;
+        state.serialize_field("manufacturerID", &self.get_manufacturer_id())?;
+        state.serialize_field("model", &self.get_model())?;
+        state.serialize_field("serialNumber", &self.get_serial_number())?;
+        state.serialize_field("flags", &self.flags)?;
+        state.serialize_field("ulMaxSessionCount", &self.ulMaxSessionCount)?;
+        state.serialize_field("ulSessionCount", &self.ulSessionCount)?;
+        state.serialize_field("ulMaxRwSessionCount", &self.ulMaxRwSessionCount)?;
+        state.serialize_field("ulRwSessionCount", &self.ulRwSessionCount)?;
+        state.serialize_field("ulMaxPinLen", &self.ulMaxPinLen)?;
+        state.serialize_field("ulMinPinLen", &self.ulMinPinLen)?;
+        state.serialize_field("ulTotalPublicMemory", &self.ulTotalPublicMemory)?;
+        state.serialize_field("ulFreePublicMemory", &self.ulFreePublicMemory)?;
+        state.serialize_field("ulTotalPrivateMemory", &self.ulTotalPrivateMemory)?;
+        state.serialize_field("ulFreePrivateMemory", &self.ulFreePrivateMemory)?;
+        state.serialize_field("hardwareVersion", &self.hardwareVersion)?;
+        state.serialize_field("firmwareVersion", &self.firmwareVersion)?;
+        state.serialize_field("utcTime", &self.get_utc_time())?;
+        state.end()
     }
 }
 
@@ -121,8 +195,25 @@ pub struct TByteArray {
     pub data: *mut u8,
 }
 
+impl TByteArray {
+    pub fn get_data(&self) -> Vec<u8> {
+        unsafe { Vec::from_raw_parts(self.data, self.length, self.length) }
+    }
+}
+
+impl Serialize for TByteArray {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("TByteArray", 1)?;
+        state.serialize_field("data", &self.get_data())?;
+        state.end()
+    }
+}
+
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize)]
 pub struct TSlotTokenInfo {
     pub slot_info: CK_SLOT_INFO,
     pub token_info: CK_TOKEN_INFO,
@@ -136,6 +227,23 @@ pub struct TSlotTokenInfoArray {
     pub slots_info: *mut TSlotTokenInfo,
 }
 
+impl TSlotTokenInfoArray {
+    pub fn get_slots_info(&self) -> Vec<TSlotTokenInfo> {
+        unsafe { Vec::from_raw_parts(self.slots_info, self.count, self.count) }
+    }
+}
+
+impl Serialize for TSlotTokenInfoArray {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("TSlotTokenInfoArray", 1)?;
+        state.serialize_field("slots_info", &self.get_slots_info())?;
+        state.end()
+    }
+}
+
 extern "C" {
     pub fn perform_signing(
         input: TByteArray,
@@ -146,4 +254,17 @@ extern "C" {
 
 extern "C" {
     pub fn get_slots_info() -> TSlotTokenInfoArray;
+}
+
+pub fn rtpkcs11sign_get_slots_info() -> Option<Vec<TSlotTokenInfo>> {
+    unsafe {
+        let slots_info = get_slots_info();
+        if slots_info.count > 0 && !slots_info.slots_info.is_null() {
+            let result = slots_info.get_slots_info();
+            libc::free(slots_info.slots_info as *mut libc::c_void);
+            Some(result)
+        } else {
+            None
+        }
+    }
 }

@@ -2,13 +2,18 @@ mod librtpkcs11sign;
 
 // use std::ffi::CString;
 
-use librtpkcs11sign::get_slots_info;
+use librtpkcs11sign::rtpkcs11sign_get_slots_info;
 
 use actix_web::{get, middleware::Logger, post, App, HttpResponse, HttpServer, Responder};
+use actix_web::{web, Result};
 
 #[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
+async fn hello() -> Result<impl Responder> {
+    let obj = rtpkcs11sign_get_slots_info();
+    match obj {
+        Some(val) => Ok(web::Json(val)),
+        None => Err(actix_web::error::ErrorInternalServerError("No slots found")),
+    }
 }
 
 #[post("/echo")]
@@ -38,17 +43,6 @@ async fn echo(req_body: String) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    unsafe {
-        let slots_info = get_slots_info();
-        println!("{:?}", slots_info);
-        if slots_info.count > 0 && !slots_info.slots_info.is_null() {
-            let slot_token_info =
-                std::slice::from_raw_parts(slots_info.slots_info, slots_info.count);
-            println!("{}", slot_token_info[0].slot_info);
-            println!("{}", slot_token_info[0].token_info);
-        }
-        libc::free(slots_info.slots_info as *mut libc::c_void);
-    }
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     HttpServer::new(|| {
         App::new()
