@@ -13,6 +13,11 @@
 #include "librtpkcs11sign.h"
 #include "errors.h"
 
+static bool check_pkcs11(TPKCS11Handle handle)
+{
+    return (handle.pkcs11_handle != NULL) && (handle.function_list != NULL) && (handle.function_list_ex != NULL);
+}
+
 TPKCS11Handle init_pkcs11()
 {
     TPKCS11Handle result = {0};
@@ -75,11 +80,6 @@ static void release_slot_list(CK_SLOT_ID_PTR slots)
 {
     if (slots != NULL)
         free(slots);
-}
-
-static bool check_pkcs11(TPKCS11Handle handle)
-{
-    return (handle.pkcs11_handle != NULL) && (handle.function_list != NULL) && (handle.function_list_ex != NULL);
 }
 
 void cleanup_pkcs11(TPKCS11Handle handle)
