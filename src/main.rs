@@ -1,6 +1,8 @@
 mod librtpkcs11sign;
 
-use librtpkcs11sign::{rtpkcs11sign_get_slots_info, rtpkcs11sign_perform_signing};
+use librtpkcs11sign::{
+    rtpkcs11sign_get_slots_info, rtpkcs11sign_init_pkcs11, rtpkcs11sign_perform_signing,
+};
 
 use actix_web::{get, middleware::Logger, post, App, HttpServer, Responder};
 use actix_web::{web, Result};
@@ -46,6 +48,7 @@ async fn sign(req_body: web::Json<SignRequest>) -> Result<impl Responder> {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    rtpkcs11sign_init_pkcs11();
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     HttpServer::new(|| {
         App::new()

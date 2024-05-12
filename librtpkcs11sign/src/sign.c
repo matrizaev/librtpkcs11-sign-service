@@ -13,50 +13,53 @@
 #include "librtpkcs11sign.h"
 #include "errors.h"
 
-static bool check_pkcs11(TPKCS11Handle handle)
+static TPKCS11Handle handle = {0};
+
+bool check_pkcs11()
 {
     return (handle.pkcs11_handle != NULL) && (handle.function_list != NULL) && (handle.function_list_ex != NULL);
 }
 
-TPKCS11Handle init_pkcs11()
+void init_pkcs11()
 {
-    TPKCS11Handle result = {0};
     CK_RV rv;
     CK_C_INITIALIZE_ARGS init_args = {NULL_PTR, NULL_PTR, NULL_PTR, NULL_PTR, CKF_OS_LOCKING_OK, NULL_PTR};
 
-    result.pkcs11_handle = dlopen(PKCS11_LIBRARY_NAME, RTLD_NOW);
-    check(result.pkcs11_handle != NULL, "%s", dlerror());
+    check(!check_pkcs11(), "PKCS11 already initialized");
+
+    handle.pkcs11_handle = dlopen(PKCS11_LIBRARY_NAME, RTLD_NOW);
+    check(handle.pkcs11_handle != NULL, "%s", dlerror());
 
     dlerror();
-    CK_C_GetFunctionList get_function_list = (CK_C_GetFunctionList)dlsym(result.pkcs11_handle, "C_GetFunctionList");
+    CK_C_GetFunctionList get_function_list = (CK_C_GetFunctionList)dlsym(handle.pkcs11_handle, "C_GetFunctionList");
     const char *error_msg = dlerror();
     check((get_function_list != NULL) && (error_msg == NULL), "Couldn't find C_GetFunctionList: %s", error_msg);
 
     dlerror();
-    CK_C_EX_GetFunctionListExtended get_function_list_ex = (CK_C_EX_GetFunctionListExtended)dlsym(result.pkcs11_handle, "C_EX_GetFunctionListExtended");
+    CK_C_EX_GetFunctionListExtended get_function_list_ex = (CK_C_EX_GetFunctionListExtended)dlsym(handle.pkcs11_handle, "C_EX_GetFunctionListExtended");
     error_msg = dlerror();
     check((get_function_list_ex != NULL) && (error_msg == NULL), "Couldn't find C_EX_GetFunctionListExtended: %s", error_msg);
 
-    rv = get_function_list(&result.function_list);
-    check((rv == CKR_OK) && (result.function_list != NULL), "Couldn't run C_GetFunctionList: %s", rv_to_str(rv));
+    rv = get_function_list(&handle.function_list);
+    check((rv == CKR_OK) && (handle.function_list != NULL), "Couldn't run C_GetFunctionList: %s", rv_to_str(rv));
 
-    rv = get_function_list_ex(&result.function_list_ex);
-    check((rv == CKR_OK) && (result.function_list_ex != NULL), "Couldn't run C_EX_GetFunctionListExtended: %s", rv_to_str(rv));
+    rv = get_function_list_ex(&handle.function_list_ex);
+    check((rv == CKR_OK) && (handle.function_list_ex != NULL), "Couldn't run C_EX_GetFunctionListExtended: %s", rv_to_str(rv));
 
-    rv = result.function_list->C_Initialize(&init_args);
+    rv = handle.function_list->C_Initialize(&init_args);
     check(rv == CKR_OK, "Couldn't run C_Initialize: %s", rv_to_str(rv));
 
 error:
-    return result;
+    return;
 }
 
-static CK_SLOT_ID_PTR get_slot_list(TPKCS11Handle handle, size_t *count)
+static CK_SLOT_ID_PTR get_slot_list(size_t *count)
 {
     CK_RV rv;
     CK_SLOT_ID_PTR result = NULL;
     size_t slot_count = 0;
 
-    check(check_pkcs11(handle), "Invalid PKCS11 handle");
+    check(check_pkcs11(), "Invalid PKCS11 handle");
 
     rv = handle.function_list->C_GetSlotList(CK_TRUE, NULL, &slot_count);
     check((rv == CKR_OK) && (slot_count != 0), "There are no slots available: %s", rv_to_str(rv));
@@ -82,7 +85,7 @@ static void release_slot_list(CK_SLOT_ID_PTR slots)
         free(slots);
 }
 
-void cleanup_pkcs11(TPKCS11Handle handle)
+void cleanup_pkcs11()
 {
     CK_RV rv;
     if (handle.function_list != NULL)
@@ -93,18 +96,19 @@ void cleanup_pkcs11(TPKCS11Handle handle)
     }
     if (handle.pkcs11_handle != NULL)
         dlclose(handle.pkcs11_handle);
+    handle = (TPKCS11Handle){0};
 }
 
-CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, const char *user_pin)
+CK_SESSION_HANDLE open_slot_session(size_t slot, const char *user_pin)
 {
     CK_SESSION_HANDLE session = CK_INVALID_HANDLE;
     CK_RV rv;
     CK_SLOT_ID_PTR slots = NULL;
     size_t slot_count = 0;
 
-    check(check_pkcs11(handle), "pkcs11 handle is invalid");
+    check(check_pkcs11(), "pkcs11 handle is invalid");
 
-    slots = get_slot_list(handle, &slot_count);
+    slots = get_slot_list(&slot_count);
     check(slots != NULL && slot_count > 0, "Couldn't get slot list");
 
     check(slot < slot_count, "slot is out of bounds");
@@ -120,7 +124,7 @@ CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, const cha
     if (rv != CKR_OK)
     {
         log_err("Couldn't run C_Login: %s", rv_to_str(rv));
-        close_slot_session(handle, session);
+        close_slot_session(session);
         session = CK_INVALID_HANDLE;
     }
 
@@ -132,7 +136,7 @@ error:
     return session;
 }
 
-void close_slot_session(TPKCS11Handle handle, CK_SESSION_HANDLE session)
+void close_slot_session(CK_SESSION_HANDLE session)
 {
     CK_RV rv;
     if (session != CK_INVALID_HANDLE)
@@ -214,7 +218,7 @@ error:
     return error_code;
 }
 
-TByteArray perform_signing(TPKCS11Handle handle, const TByteArray input, const char *user_pin, const char *key_pair_id, size_t slot)
+TByteArray perform_signing(const TByteArray input, const char *user_pin, const char *key_pair_id, size_t slot)
 {
 
     CK_OBJECT_CLASS privateKeyObject = CKO_PRIVATE_KEY;
@@ -256,9 +260,9 @@ TByteArray perform_signing(TPKCS11Handle handle, const TByteArray input, const c
             // { CKA_CERTIFICATE_CATEGORY, &tokenUserCertificate, sizeof(tokenUserCertificate)},
         };
 
-    check(check_pkcs11(handle), "pkcs11 handle is invalid");
+    check(check_pkcs11(), "pkcs11 handle is invalid");
 
-    CK_SESSION_HANDLE session = open_slot_session(handle, slot, user_pin);
+    CK_SESSION_HANDLE session = open_slot_session(slot, user_pin);
     check(session != CK_INVALID_HANDLE, "open_slot_session failed");
 
     int r = find_objects(handle.function_list, session, privateKeyTemplate, arraysize(privateKeyTemplate),
@@ -292,21 +296,21 @@ error:
             log_err("C_EX_FreeBuffer: %s", rv_to_str(rv));
     }
 
-    close_slot_session(handle, session);
+    close_slot_session(session);
 
     return result;
 }
 
-TSlotTokenInfoArray get_slots_info(TPKCS11Handle handle)
+TSlotTokenInfoArray get_slots_info()
 {
     TSlotTokenInfoArray result = {.count = 0, .slots_info = NULL};
     CK_RV rv;
     CK_SLOT_ID_PTR slots = NULL;
     size_t slot_count = 0;
 
-    check(check_pkcs11(handle), "pkcs11 handle is invalid");
+    check(check_pkcs11(), "pkcs11 handle is invalid");
 
-    slots = get_slot_list(handle, &slot_count);
+    slots = get_slot_list(&slot_count);
     check(slots != NULL && slot_count > 0, "Couldn't get slot list");
 
     result.slots_info = (TSlotTokenInfo *)malloc(slot_count * sizeof(TSlotTokenInfo));

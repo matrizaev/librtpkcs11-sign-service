@@ -5,7 +5,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
-use std::ffi::{c_char, CString};
+use std::ffi::{c_char, c_void, CString};
 use std::fmt;
 
 use serde::ser::SerializeStruct;
@@ -256,6 +256,14 @@ extern "C" {
 }
 
 extern "C" {
+    fn init_pkcs11();
+}
+
+extern "C" {
+    fn cleanup_pkcs11();
+}
+
+extern "C" {
     fn get_slots_info() -> TSlotTokenInfoArray;
 }
 
@@ -307,4 +315,12 @@ pub fn rtpkcs11sign_perform_signing(
             None
         }
     }
+}
+
+pub fn rtpkcs11sign_init_pkcs11() {
+    unsafe { init_pkcs11() }
+}
+
+pub fn rtpkcs11sign_cleanup_pkcs11() {
+    unsafe { cleanup_pkcs11() }
 }
