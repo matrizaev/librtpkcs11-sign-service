@@ -26,7 +26,7 @@ char *test_get_slots_info()
     TSlotTokenInfoArray slots = get_slots_info(PKCS11_LIBRARY_NAME);
     mu_assert(slots.count > 0 && slots.slots_info != NULL, "get_slots_info failed");
 
-    free(slots.slots_info);
+    release_slots_info(slots);
     return NULL;
 }
 
@@ -39,7 +39,7 @@ char *test_perform_signing()
 
     mu_assert(signature.data != NULL && signature.length > 0, "perform_signing failed");
 
-    free(signature.data);
+    release_byte_array(signature);
     return NULL;
 }
 

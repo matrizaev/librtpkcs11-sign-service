@@ -19,7 +19,7 @@ typedef struct
 
 extern TPKCS11Handle init_pkcs11(const char *library_file_name);
 extern void cleanup_pkcs11(TPKCS11Handle handle);
-extern CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, char *user_pin);
+extern CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, const char *user_pin);
 extern void close_slot_session(TPKCS11Handle handle, CK_SESSION_HANDLE session);
 
 #endif // _SIGN_H

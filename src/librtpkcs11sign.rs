@@ -198,7 +198,7 @@ pub struct TByteArray {
 
 impl TByteArray {
     pub fn get_data(&self) -> Vec<u8> {
-        unsafe { Vec::from_raw_parts(self.data, self.length, self.length) }
+        unsafe { std::slice::from_raw_parts(self.data, self.length).to_vec() }
     }
 }
 
@@ -231,7 +231,7 @@ pub struct TSlotTokenInfoArray {
 
 impl TSlotTokenInfoArray {
     pub fn get_slots_info(&self) -> Vec<TSlotTokenInfo> {
-        unsafe { Vec::from_raw_parts(self.slots_info, self.count, self.count) }
+        unsafe { std::slice::from_raw_parts(self.slots_info, self.count).to_vec() }
     }
 }
 
@@ -249,8 +249,8 @@ impl Serialize for TSlotTokenInfoArray {
 extern "C" {
     fn perform_signing(
         input: TByteArray,
-        user_pin: *mut c_char,
-        key_pair_id: *mut c_char,
+        user_pin: *const c_char,
+        key_pair_id: *const c_char,
         slot_id: usize,
     ) -> TByteArray;
 }
@@ -259,12 +259,20 @@ extern "C" {
     fn get_slots_info() -> TSlotTokenInfoArray;
 }
 
+extern "C" {
+    fn release_slots_info(array: TSlotTokenInfoArray);
+}
+
+extern "C" {
+    fn release_byte_array(array: TByteArray);
+}
+
 pub fn rtpkcs11sign_get_slots_info() -> Option<Vec<TSlotTokenInfo>> {
     unsafe {
         let slots_info = get_slots_info();
         if slots_info.count > 0 && !slots_info.slots_info.is_null() {
             let result = slots_info.get_slots_info();
-            libc::free(slots_info.slots_info as *mut libc::c_void);
+            release_slots_info(slots_info);
             Some(result)
         } else {
             None
@@ -285,14 +293,15 @@ pub fn rtpkcs11sign_perform_signing(
         length: input_data.len(),
     };
     unsafe {
-        let user_pin = user_pin.into_raw();
-        let key_pair_id = key_pair_id.into_raw();
-        let memory_pointer = perform_signing(memory_pointer, user_pin, key_pair_id, slot_id);
-        let _user_pin = CString::from_raw(user_pin);
-        let _key_pair_id = CString::from_raw(key_pair_id);
+        let memory_pointer = perform_signing(
+            memory_pointer,
+            user_pin.as_ptr(),
+            key_pair_id.as_ptr(),
+            slot_id,
+        );
         if memory_pointer.length > 0 && !memory_pointer.data.is_null() {
             let result = memory_pointer.get_data();
-            libc::free(memory_pointer.data as *mut libc::c_void);
+            release_byte_array(memory_pointer);
             Some(result)
         } else {
             None

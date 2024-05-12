@@ -76,7 +76,7 @@ void cleanup_pkcs11(TPKCS11Handle handle)
         dlclose(handle.pkcs11_handle);
 }
 
-CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, char *user_pin)
+CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, const char *user_pin)
 {
     CK_SESSION_HANDLE session = CK_INVALID_HANDLE;
     CK_RV rv;
@@ -86,10 +86,13 @@ CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, char *use
     check(slot < handle.slot_count, "slot is out of bounds");
     check(user_pin != NULL, "user_pin is NULL");
 
+    char *user_pin_mut = strdup(user_pin);
+    check_mem(user_pin_mut);
+
     rv = handle.function_list->C_OpenSession(handle.slots[slot], CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session);
     check(rv == CKR_OK, "Couldn't run C_OpenSession: %s", rv_to_str(rv));
 
-    rv = handle.function_list->C_Login(session, CKU_USER, user_pin, strlen(user_pin));
+    rv = handle.function_list->C_Login(session, CKU_USER, user_pin_mut, strlen(user_pin_mut));
     if (rv != CKR_OK)
     {
         log_err("Couldn't run C_Login: %s", rv_to_str(rv));
@@ -98,6 +101,8 @@ CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, char *use
     }
 
 error:
+    if (user_pin_mut != NULL)
+        free(user_pin_mut);
     return session;
 }
 
@@ -183,7 +188,7 @@ error:
     return error_code;
 }
 
-TByteArray perform_signing(const TByteArray input, char *user_pin, char *key_pair_id, size_t slot)
+TByteArray perform_signing(const TByteArray input, const char *user_pin, const char *key_pair_id, size_t slot)
 {
 
     CK_OBJECT_CLASS privateKeyObject = CKO_PRIVATE_KEY;
@@ -206,18 +211,21 @@ TByteArray perform_signing(const TByteArray input, char *user_pin, char *key_pai
 
     check(input.data != NULL && input.length > 0 && user_pin != NULL && key_pair_id != NULL, "Function input is invalid.");
 
+    char *key_pair_id_mut = strdup(key_pair_id);
+    check_mem(key_pair_id_mut);
+
     CK_ATTRIBUTE privateKeyTemplate[] =
         {
             {CKA_CLASS, &privateKeyObject, sizeof(privateKeyObject)},
             {CKA_TOKEN, &attributeTrue, sizeof(attributeTrue)},
-            {CKA_ID, key_pair_id, strlen(key_pair_id)},
+            {CKA_ID, key_pair_id_mut, strlen(key_pair_id_mut)},
         };
 
     CK_ATTRIBUTE certificateTemplate[] =
         {
             {CKA_CLASS, &certificateObject, sizeof(certificateObject)},
             {CKA_TOKEN, &attributeTrue, sizeof(attributeTrue)},
-            {CKA_ID, key_pair_id, strlen(key_pair_id)},
+            {CKA_ID, key_pair_id_mut, strlen(key_pair_id_mut)},
             {CKA_CERTIFICATE_TYPE, &certificateType, sizeof(certificateType)},
             // { CKA_CERTIFICATE_CATEGORY, &tokenUserCertificate, sizeof(tokenUserCertificate)},
         };
@@ -246,14 +254,12 @@ TByteArray perform_signing(const TByteArray input, char *user_pin, char *key_pai
     memmove(result.data, signature, signatureSize);
 
 error:
+    if (key_pair_id_mut != NULL)
+        free(key_pair_id_mut);
     if (certificates != NULL)
-    {
         free(certificates);
-    }
     if (privateKeys != NULL)
-    {
         free(privateKeys);
-    }
     if (signature != NULL)
     {
         rv = handle.function_list_ex->C_EX_FreeBuffer(signature);
@@ -302,4 +308,16 @@ TSlotTokenInfoArray get_slots_info()
 error:
     cleanup_pkcs11(handle);
     return result;
+}
+
+void release_slots_info(TSlotTokenInfoArray array)
+{
+    if (array.slots_info != NULL)
+        free(array.slots_info);
+}
+
+void release_byte_array(TByteArray array)
+{
+    if (array.data != NULL)
+        free(array.data);
 }

@@ -27,7 +27,9 @@ typedef struct
     TSlotTokenInfo *slots_info;
 } TSlotTokenInfoArray;
 
-extern TByteArray perform_signing(const TByteArray input, char *user_pin, char *key_pair_id, size_t slot);
+extern TByteArray perform_signing(const TByteArray input, const char *user_pin, const char *key_pair_id, size_t slot);
 extern TSlotTokenInfoArray get_slots_info();
+extern void release_slots_info(TSlotTokenInfoArray array);
+extern void release_byte_array(TByteArray array);
 
 #endif // _LIBRTPKCS11_H
