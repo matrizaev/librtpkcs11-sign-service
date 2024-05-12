@@ -18,6 +18,7 @@ TPKCS11Handle init_pkcs11(const char *library_file_name)
 {
     TPKCS11Handle result = {0};
     CK_RV rv;
+    CK_C_INITIALIZE_ARGS init_args = {NULL_PTR, NULL_PTR, NULL_PTR, NULL_PTR, CKF_OS_LOCKING_OK, NULL_PTR};
 
     check(library_file_name != NULL, "library_file_name is NULL");
 
@@ -40,7 +41,7 @@ TPKCS11Handle init_pkcs11(const char *library_file_name)
     rv = get_function_list_ex(&result.function_list_ex);
     check((rv == CKR_OK) && (result.function_list_ex != NULL), "Couldn't run C_EX_GetFunctionListExtended: %s", rv_to_str(rv));
 
-    rv = result.function_list->C_Initialize(NULL);
+    rv = result.function_list->C_Initialize(&init_args);
     check(rv == CKR_OK, "Couldn't run C_Initialize: %s", rv_to_str(rv));
 
     rv = result.function_list->C_GetSlotList(CK_TRUE, NULL, &result.slot_count);
