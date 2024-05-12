@@ -4,3 +4,5 @@
 librtpkcs11sign/build/
 
 build/
+
+.vscode/

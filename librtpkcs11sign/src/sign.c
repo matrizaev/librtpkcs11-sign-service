@@ -11,18 +11,15 @@
 
 #include "dbg.h"
 #include "librtpkcs11sign.h"
-#include "sign.h"
 #include "errors.h"
 
-TPKCS11Handle init_pkcs11(const char *library_file_name)
+TPKCS11Handle init_pkcs11()
 {
     TPKCS11Handle result = {0};
     CK_RV rv;
     CK_C_INITIALIZE_ARGS init_args = {NULL_PTR, NULL_PTR, NULL_PTR, NULL_PTR, CKF_OS_LOCKING_OK, NULL_PTR};
 
-    check(library_file_name != NULL, "library_file_name is NULL");
-
-    result.pkcs11_handle = dlopen(library_file_name, RTLD_NOW);
+    result.pkcs11_handle = dlopen(PKCS11_LIBRARY_NAME, RTLD_NOW);
     check(result.pkcs11_handle != NULL, "%s", dlerror());
 
     dlerror();
@@ -44,29 +41,48 @@ TPKCS11Handle init_pkcs11(const char *library_file_name)
     rv = result.function_list->C_Initialize(&init_args);
     check(rv == CKR_OK, "Couldn't run C_Initialize: %s", rv_to_str(rv));
 
-    rv = result.function_list->C_GetSlotList(CK_TRUE, NULL, &result.slot_count);
-    check((rv == CKR_OK) && (result.slot_count != 0), "There are no slots available: %s", rv_to_str(rv));
-
-    result.slots = (CK_SLOT_ID_PTR)malloc(result.slot_count * sizeof(CK_SLOT_ID));
-    check_mem(result.slots);
-
-    rv = result.function_list->C_GetSlotList(CK_TRUE, result.slots, &result.slot_count);
-    check((rv == CKR_OK) && (result.slot_count != 0), "There are no slots available: %s", rv_to_str(rv));
-
 error:
     return result;
 }
 
+static CK_SLOT_ID_PTR get_slot_list(TPKCS11Handle handle, size_t *count)
+{
+    CK_RV rv;
+    CK_SLOT_ID_PTR result = NULL;
+    size_t slot_count = 0;
+
+    rv = handle.function_list->C_GetSlotList(CK_TRUE, NULL, &slot_count);
+    check((rv == CKR_OK) && (slot_count != 0), "There are no slots available: %s", rv_to_str(rv));
+
+    result = (CK_SLOT_ID_PTR)malloc(slot_count * sizeof(CK_SLOT_ID));
+    check_mem(result);
+
+    rv = handle.function_list->C_GetSlotList(CK_TRUE, result, &slot_count);
+    check((rv == CKR_OK) && (slot_count != 0), "There are no slots available: %s", rv_to_str(rv));
+    *count = slot_count;
+    return result;
+
+error:
+    *count = 0;
+    if (result != NULL)
+        free(result);
+    return NULL;
+}
+
+static void release_slot_list(CK_SLOT_ID_PTR slots)
+{
+    if (slots != NULL)
+        free(slots);
+}
+
 static bool check_pkcs11(TPKCS11Handle handle)
 {
-    return (handle.pkcs11_handle != NULL) && (handle.function_list != NULL) && (handle.function_list_ex != NULL) && (handle.slots != NULL) && (handle.slot_count > 0);
+    return (handle.pkcs11_handle != NULL) && (handle.function_list != NULL) && (handle.function_list_ex != NULL);
 }
 
 void cleanup_pkcs11(TPKCS11Handle handle)
 {
     CK_RV rv;
-    if (handle.slots != NULL)
-        free(handle.slots);
     if (handle.function_list != NULL)
     {
         rv = handle.function_list->C_Finalize(NULL);
@@ -81,16 +97,21 @@ CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, const cha
 {
     CK_SESSION_HANDLE session = CK_INVALID_HANDLE;
     CK_RV rv;
+    CK_SLOT_ID_PTR slots = NULL;
+    size_t slot_count = 0;
 
     check(check_pkcs11(handle), "pkcs11 handle is invalid");
 
-    check(slot < handle.slot_count, "slot is out of bounds");
+    slots = get_slot_list(handle, &slot_count);
+    check(slots != NULL && slot_count > 0, "Couldn't get slot list");
+
+    check(slot < slot_count, "slot is out of bounds");
     check(user_pin != NULL, "user_pin is NULL");
 
     char *user_pin_mut = strdup(user_pin);
     check_mem(user_pin_mut);
 
-    rv = handle.function_list->C_OpenSession(handle.slots[slot], CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session);
+    rv = handle.function_list->C_OpenSession(slots[slot], CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session);
     check(rv == CKR_OK, "Couldn't run C_OpenSession: %s", rv_to_str(rv));
 
     rv = handle.function_list->C_Login(session, CKU_USER, user_pin_mut, strlen(user_pin_mut));
@@ -102,6 +123,8 @@ CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, const cha
     }
 
 error:
+    if (slots != NULL)
+        release_slot_list(slots);
     if (user_pin_mut != NULL)
         free(user_pin_mut);
     return session;
@@ -189,7 +212,7 @@ error:
     return error_code;
 }
 
-TByteArray perform_signing(const TByteArray input, const char *user_pin, const char *key_pair_id, size_t slot)
+TByteArray perform_signing(TPKCS11Handle handle, const TByteArray input, const char *user_pin, const char *key_pair_id, size_t slot)
 {
 
     CK_OBJECT_CLASS privateKeyObject = CKO_PRIVATE_KEY;
@@ -231,7 +254,6 @@ TByteArray perform_signing(const TByteArray input, const char *user_pin, const c
             // { CKA_CERTIFICATE_CATEGORY, &tokenUserCertificate, sizeof(tokenUserCertificate)},
         };
 
-    TPKCS11Handle handle = init_pkcs11(PKCS11_LIBRARY_NAME);
     check(check_pkcs11(handle), "pkcs11 handle is invalid");
 
     CK_SESSION_HANDLE session = open_slot_session(handle, slot, user_pin);
@@ -273,20 +295,25 @@ error:
     return result;
 }
 
-TSlotTokenInfoArray get_slots_info()
+TSlotTokenInfoArray get_slots_info(TPKCS11Handle handle)
 {
     TSlotTokenInfoArray result = {.count = 0, .slots_info = NULL};
     CK_RV rv;
+    CK_SLOT_ID_PTR slots = NULL;
+    size_t slot_count = 0;
 
-    TPKCS11Handle handle = init_pkcs11(PKCS11_LIBRARY_NAME);
     check(check_pkcs11(handle), "pkcs11 handle is invalid");
-    result.slots_info = (TSlotTokenInfo *)malloc(handle.slot_count * sizeof(TSlotTokenInfo));
-    check_mem(result.slots_info);
-    result.count = handle.slot_count;
 
-    for (size_t i = 0; i < handle.slot_count; i++)
+    slots = get_slot_list(handle, &slot_count);
+    check(slots != NULL && slot_count > 0, "Couldn't get slot list");
+
+    result.slots_info = (TSlotTokenInfo *)malloc(slot_count * sizeof(TSlotTokenInfo));
+    check_mem(result.slots_info);
+    result.count = slot_count;
+
+    for (size_t i = 0; i < slot_count; i++)
     {
-        CK_SLOT_ID slot_id = handle.slots[i];
+        CK_SLOT_ID slot_id = slots[i];
         result.slots_info[i].slot_id = slot_id;
         result.slots_info[i].valid = true;
 
@@ -307,6 +334,8 @@ TSlotTokenInfoArray get_slots_info()
     }
 
 error:
+    if (slots != NULL)
+        release_slot_list(slots);
     cleanup_pkcs11(handle);
     return result;
 }

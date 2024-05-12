@@ -9,6 +9,13 @@
 
 typedef struct
 {
+    void *pkcs11_handle;
+    CK_FUNCTION_LIST_PTR function_list;
+    CK_FUNCTION_LIST_EXTENDED_PTR function_list_ex;
+} TPKCS11Handle;
+
+typedef struct
+{
     size_t length; // the full length of the memory block in bytes
     uint8_t *data;
 } TByteArray;
@@ -27,9 +34,17 @@ typedef struct
     TSlotTokenInfo *slots_info;
 } TSlotTokenInfoArray;
 
-extern TByteArray perform_signing(const TByteArray input, const char *user_pin, const char *key_pair_id, size_t slot);
-extern TSlotTokenInfoArray get_slots_info();
+#define PKCS11_LIBRARY_NAME "librtpkcs11ecp.so"
+#define arraysize(a) (sizeof(a) / sizeof(a[0]))
+
+extern CK_SESSION_HANDLE open_slot_session(TPKCS11Handle handle, size_t slot, const char *user_pin);
+extern void close_slot_session(TPKCS11Handle handle, CK_SESSION_HANDLE session);
+
+extern TByteArray perform_signing(const TPKCS11Handle handle, const TByteArray input, const char *user_pin, const char *key_pair_id, size_t slot);
+extern TSlotTokenInfoArray get_slots_info(TPKCS11Handle handle);
 extern void release_slots_info(TSlotTokenInfoArray array);
 extern void release_byte_array(TByteArray array);
+extern TPKCS11Handle init_pkcs11();
+extern void cleanup_pkcs11(TPKCS11Handle handle);
 
 #endif // _LIBRTPKCS11_H
