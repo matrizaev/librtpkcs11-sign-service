@@ -51,6 +51,8 @@ static CK_SLOT_ID_PTR get_slot_list(TPKCS11Handle handle, size_t *count)
     CK_SLOT_ID_PTR result = NULL;
     size_t slot_count = 0;
 
+    check(check_pkcs11(handle), "Invalid PKCS11 handle");
+
     rv = handle.function_list->C_GetSlotList(CK_TRUE, NULL, &slot_count);
     check((rv == CKR_OK) && (slot_count != 0), "There are no slots available: %s", rv_to_str(rv));
 
@@ -291,7 +293,7 @@ error:
     }
 
     close_slot_session(handle, session);
-    cleanup_pkcs11(handle);
+
     return result;
 }
 
@@ -336,7 +338,7 @@ TSlotTokenInfoArray get_slots_info(TPKCS11Handle handle)
 error:
     if (slots != NULL)
         release_slot_list(slots);
-    cleanup_pkcs11(handle);
+
     return result;
 }
 
